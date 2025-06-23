@@ -1,5 +1,6 @@
 @echo off
 REM run_pipeline.bat - Script para ejecutar el pipeline desde Windows
+REM PS C:\code\strix-system> .\pipeline\pipeline_run_script.bat
 
 echo ==========================================
 echo    STRIX PORTFOLIO PIPELINE LAUNCHER

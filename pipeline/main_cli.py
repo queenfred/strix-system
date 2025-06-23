@@ -1,4 +1,6 @@
-# pipeline/main.py - CLI del Portfolio Pipeline
+# pipeline/main_cli.py - CLI del Portfolio Pipeline
+#PS C:\code\strix-system> .\pipeline\pipeline_run_script.bat
+
 import sys
 import os
 import argparse
@@ -430,6 +432,17 @@ def run_pipeline(processor, processor_type, start_date, end_date, args):
         if args.verbose and hasattr(processor, 'max_workers'):
             print(f"🔧 Workers configurados: {processor.max_workers}")
     
+    # Inicializar monitor de recursos si está disponible
+    monitor = None
+    if args.verbose:
+        try:
+            from monitor import PipelineMonitor
+            monitor = PipelineMonitor(interval=2)
+            monitor.start_monitoring()
+        except ImportError:
+            if not args.quiet:
+                print("📊 Monitor de recursos no disponible (crear monitor.py)")
+    
     start_time = datetime.now()
     
     try:
@@ -463,6 +476,10 @@ def run_pipeline(processor, processor_type, start_date, end_date, args):
             import traceback
             traceback.print_exc()
         return {"success": False, "message": f"Error: {e}"}
+    finally:
+        # Detener monitor si estaba activo
+        if monitor:
+            monitor.stop_monitoring()
 
 def print_results(result, args):
     """
