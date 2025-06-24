@@ -1,4 +1,7 @@
 
+# core/services/vehicle_service.py
+from datetime import datetime
+
 class VehicleService:
     """
     Servicio para crear domains a partir de vehículos obtenidos de una base externa,
@@ -19,6 +22,8 @@ class VehicleService:
         existing_keys = {(d.domain, d.id_account) for d in existing_domains}
 
         new_domains = []
+        current_time = datetime.utcnow()  # Fecha actual para todos los nuevos domains
+        
         for vehicle in vehicles:
             domain_name = vehicle["domain"]
             id_thing = vehicle["id_thing"]
@@ -31,7 +36,8 @@ class VehicleService:
             new_domains.append({
                 "domain": domain_name,
                 "id_thing": id_thing,
-                "id_account": id_account
+                "id_account": id_account,
+                "created_datetime": current_time  # 🆕 Agregar created_datetime
             })
 
         if new_domains:
@@ -43,11 +49,12 @@ class VehicleService:
         with self.uow as uow:
             vehicles = uow.vehicles.get_vehicle_data(domains, limit)
         
-
         if not vehicles:
             return {"success": False, "message": "No se encontraron vehículos en strix.vvehicle."}
 
         created_domains = []
+        current_time = datetime.utcnow()  # Fecha actual para nuevos domains
+        
         for vehicle in vehicles:
             domain_name = vehicle["domain"]
             id_thing = vehicle["id_thing"]
@@ -58,8 +65,21 @@ class VehicleService:
                 print(f"⚠️ El dominio '{domain_name}' con id_account '{id_account}' ya existe. No se creará.")
                 continue
 
-            new_domain = self.uow.domains.create_domain(domain_name, id_thing, id_account)
+            # 🆕 Crear domain con created_datetime
+            new_domain = self.uow.domains.create_domain(
+                domain_name, 
+                id_thing, 
+                id_account, 
+                current_time
+            )
             if new_domain:
                 created_domains.append(new_domain)
 
         return {"success": True, "created_domains": created_domains}
+
+    def sync_domains_with_vehicle_dates(self):
+        """
+        Sincroniza las fechas de creación de domains con las fechas de strix.vvehicle
+        """
+        with self.uow as uow:
+            return uow.domains.bulk_update_created_datetime_from_vehicle()
