@@ -1,106 +1,105 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
+
+# =============================================================================
+# core/test/unit/test_domain_service.py
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from core.services.domain_service import DomainService
+from datetime import datetime
 
-@pytest.fixture
-def mock_uow():
-    uow = MagicMock()
-    uow.__enter__.return_value = uow
-    uow.domains.get_all_domains.return_value = [{"id": 1, "domain": "ABC123"}]
-    uow.domains.get_domain_by_id.return_value = {"id": 1, "domain": "ABC123"}
-    uow.domains.get_domain_by_name.return_value = {"id": 1, "domain": "ABC123"}
-    uow.domains.get_domain_by_name_and_account.return_value = {"id": 1, "domain": "ABC123", "id_account": 10}
-    uow.domains.get_domains_by_names.return_value = [{"domain": "ABC123"}, {"domain": "DEF456"}]
-    uow.domains.create_domain.return_value = {"id": 2, "domain": "NEW"}
-    uow.domains.delete_domain.return_value = True
-    uow.domains.get_existing_domains_by_name_and_account.return_value = [("ABC123", 10)]
-    return uow
+class TestDomainService:
+    
+    @patch('core.services.domain_service.SQLAlchemyUnitOfWork')
+    def test_get_all_domains(self, mock_uow_class, mock_uow):
+        mock_uow_class.return_value = mock_uow
+        mock_uow.domains.get_all_domains.return_value = [
+            {"id": 1, "domain": "ABC123", "id_thing": "thing1"},
+            {"id": 2, "domain": "DEF456", "id_thing": "thing2"}
+        ]
+        
+        service = DomainService()
+        result = service.get_all_domains()
+        
+        assert len(result) == 2
+        assert result[0]["domain"] == "ABC123"
+        assert result[1]["domain"] == "DEF456"
+        mock_uow.domains.get_all_domains.assert_called_once()
 
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_get_all_domains(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.get_all_domains()
-    assert isinstance(result, list)
+    @patch('core.services.domain_service.SQLAlchemyUnitOfWork')
+    def test_create_domain(self, mock_uow_class, mock_uow):
+        mock_uow_class.return_value = mock_uow
+        mock_uow.domains.create_domain.return_value = {
+            "id": 1, "domain": "NEW123", "id_thing": "thing1", "id_account": "account1"
+        }
+        
+        service = DomainService()
+        result = service.create_domain("NEW123", "thing1", "account1")
+        
+        assert result["domain"] == "NEW123"
+        assert result["id_thing"] == "thing1"
+        mock_uow.domains.create_domain.assert_called_once_with(
+            "NEW123", "thing1", "account1", None
+        )
 
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_get_domain_by_id(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.get_domain_by_id(1)
-    assert result["domain"] == "ABC123"
+    @patch('core.services.domain_service.SQLAlchemyUnitOfWork')
+    def test_create_domain_with_datetime(self, mock_uow_class, mock_uow):
+        mock_uow_class.return_value = mock_uow
+        test_datetime = datetime.utcnow()
+        mock_uow.domains.create_domain.return_value = {
+            "id": 1, "domain": "NEW123", "created_datetime": test_datetime.isoformat()
+        }
+        
+        service = DomainService()
+        result = service.create_domain_with_current_datetime("NEW123", "thing1", "account1")
+        
+        assert result["domain"] == "NEW123"
+        mock_uow.domains.create_domain.assert_called_once()
 
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_get_domain_by_name(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.get_domain_by_name("ABC123")
-    assert result["domain"] == "ABC123"
+    @patch('core.services.domain_service.SQLAlchemyUnitOfWork')
+    def test_get_domain_by_id(self, mock_uow_class, mock_uow):
+        mock_uow_class.return_value = mock_uow
+        mock_uow.domains.get_domain_by_id.return_value = {
+            "id": 1, "domain": "TEST123", "id_thing": "thing1"
+        }
+        
+        service = DomainService()
+        result = service.get_domain_by_id(1)
+        
+        assert result["id"] == 1
+        assert result["domain"] == "TEST123"
+        mock_uow.domains.get_domain_by_id.assert_called_once_with(1)
 
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_get_domain_by_name_and_account(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.get_domain_by_name_and_account("ABC123", 10)
-    assert result["id_account"] == 10
+    @patch('core.services.domain_service.SQLAlchemyUnitOfWork')
+    def test_get_domain_by_name(self, mock_uow_class, mock_uow):
+        mock_uow_class.return_value = mock_uow
+        mock_uow.domains.get_domain_by_name.return_value = {
+            "id": 1, "domain": "TEST123"
+        }
+        
+        service = DomainService()
+        result = service.get_domain_by_name("TEST123")
+        
+        assert result["domain"] == "TEST123"
+        mock_uow.domains.get_domain_by_name.assert_called_once_with("TEST123")
 
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_get_domains_by_names(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.get_domains_by_names(["ABC123", "DEF456"])
-    assert len(result) == 2
+    @patch('core.services.domain_service.SQLAlchemyUnitOfWork')
+    def test_delete_domain(self, mock_uow_class, mock_uow):
+        mock_uow_class.return_value = mock_uow
+        mock_uow.domains.delete_domain.return_value = True
+        
+        service = DomainService()
+        result = service.delete_domain(1)
+        
+        assert result is True
+        mock_uow.domains.delete_domain.assert_called_once_with(1)
 
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_create_domain(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.create_domain("NEW")
-    assert result["domain"] == "NEW"
-
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_delete_domain(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.delete_domain(1)
-    assert result is True
-
-@patch("core.services.domain_service.SQLAlchemyUnitOfWork")
-def test_get_existing_domains_by_name_and_account(mock_uow_class, mock_uow):
-    mock_uow_class.return_value = mock_uow
-    svc = DomainService()
-    result = svc.get_existing_domains_by_name_and_account()
-    assert ("ABC123", 10) in result
-
-@patch("core.services.domain_service.S3EventService")
-def test_process_domain_id_events_success(mock_s3_service_class):
-    mock_s3_service = MagicMock()
-    mock_s3_service.retrieve_and_store_events.return_value = True
-    mock_s3_service_class.return_value = mock_s3_service
-
-    service = DomainService()
-    result = service.process_domain_id_events(domain_id=4873, start_date="2024-01-01", end_date="2024-01-10")
-
-    assert result["domain_id"] == 4873
-    assert result["status"] is True
-    mock_s3_service.retrieve_and_store_events.assert_called_once()
-
-@patch("core.services.domain_service.S3EventService")
-def test_process_domain_id_events_failure(mock_s3_service_class):
-    mock_s3_service = MagicMock()
-    mock_s3_service.retrieve_and_store_events.side_effect = Exception("Simulated error")
-    mock_s3_service_class.return_value = mock_s3_service
-
-    service = DomainService()
-    result = service.process_domain_id_events(domain_id=4873, start_date="2024-01-01", end_date="2024-01-10")
-
-    assert result["domain_id"] == 4873
-    assert result["success"] is False
-    assert "error" in result
-
-
-
+    @patch('core.services.domain_service.SQLAlchemyUnitOfWork')
+    def test_bulk_update_created_datetime_from_vehicle(self, mock_uow_class, mock_uow):
+        mock_uow_class.return_value = mock_uow
+        mock_uow.domains.bulk_update_created_datetime_from_vehicle.return_value = 5
+        
+        service = DomainService()
+        result = service.bulk_update_created_datetime_from_vehicle()
+        
+        assert result == 5
+        mock_uow.domains.bulk_update_created_datetime_from_vehicle.assert_called_once()

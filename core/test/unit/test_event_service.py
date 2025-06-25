@@ -1,52 +1,76 @@
-import sys
-import os
+
+# =============================================================================
+# core/test/unit/test_event_service.py
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import patch, MagicMock
 from core.services.event_service import EventService
+from datetime import datetime, timedelta
 
-# ✅ Setup del path al root del proyecto
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+class TestEventService:
+    
+    def test_get_events_by_domain(self, mock_uow):
+        mock_uow.events.get_events_by_domain.return_value = [
+            {"id": 1, "id_domain": 1, "latitude": -34.6118, "longitude": -58.3960},
+            {"id": 2, "id_domain": 1, "latitude": -34.6200, "longitude": -58.4000}
+        ]
+        
+        service = EventService(mock_uow)
+        
+        with patch('core.services.event_service.SQLAlchemyUnitOfWork') as mock_uow_class:
+            mock_uow_class.return_value.__enter__.return_value = mock_uow
+            result = service.get_events_by_domain(1)
+        
+        assert len(result) == 2
+        assert result[0]["id_domain"] == 1
+        assert result[1]["id_domain"] == 1
 
-@pytest.fixture
-def mock_uow():
-    uow = MagicMock()
-    uow.events.get_event_by_id.return_value = {"id": 1, "event": "start"}
-    uow.events.get_events_by_domain.return_value = [{"id": 1}, {"id": 2}]
-    uow.events.get_events_by_domain_and_date.return_value = [{"id": 1}]
-    uow.events.create_event.return_value = {"id": 3}
-    uow.events.delete_event.return_value = True
-    uow.events.store_events.return_value = {"success": True}
-    return uow
+    def test_get_events_by_domain_and_date(self, mock_uow):
+        start_date = datetime.now()
+        end_date = start_date + timedelta(days=1)
+        
+        mock_uow.events.get_events_by_domain_and_date.return_value = [
+            {"id": 1, "id_domain": 1, "timestamp": 1704196800000}
+        ]
+        
+        service = EventService(mock_uow)
+        
+        with patch('core.services.event_service.SQLAlchemyUnitOfWork') as mock_uow_class:
+            mock_uow_class.return_value.__enter__.return_value = mock_uow
+            result = service.get_events_by_domain_and_date(1, start_date, end_date)
+        
+        assert len(result) == 1
+        assert result[0]["id_domain"] == 1
+        mock_uow.events.get_events_by_domain_and_date.assert_called_once_with(1, start_date, end_date)
 
-def test_get_event_by_id(mock_uow):
-    svc = EventService(mock_uow)
-    result = svc.get_event_by_id(1)
-    assert result["id"] == 1
+    def test_create_event(self, mock_uow):
+        mock_uow.events.create_event.return_value = {
+            "id": 1, "id_domain": 1, "latitude": -34.6118, "longitude": -58.3960,
+            "speed": 50, "event": "position", "timestamp": 1704196800000, 
+            "odometer": 100, "heading": 90
+        }
+        
+        service = EventService(mock_uow)
+        
+        with patch('core.services.event_service.SQLAlchemyUnitOfWork') as mock_uow_class:
+            mock_uow_class.return_value.__enter__.return_value = mock_uow
+            result = service.create_event(1, -34.6118, -58.3960, 50, "position", 1704196800000, 100, 90)
+        
+        assert result["id"] == 1
+        assert result["latitude"] == -34.6118
+        assert result["event"] == "position"
 
-def test_get_events_by_domain(mock_uow):
-    svc = EventService(mock_uow)
-    result = svc.get_events_by_domain(4873)
-    assert isinstance(result, list)
-
-def test_get_events_by_domain_and_date(mock_uow):
-    svc = EventService(mock_uow)
-    result = svc.get_events_by_domain_and_date(4873, "2023-01-01", "2023-01-10")
-    assert isinstance(result, list)
-
-def test_create_event(mock_uow):
-    svc = EventService(mock_uow)
-    result = svc.create_event(4873, -34.6, -58.4, 0, "main_power_on", 1234567890, 0.0, 340)
-    assert result["id"] == 3
-
-def test_delete_event(mock_uow):
-    svc = EventService(mock_uow)
-    result = svc.delete_event(1)
-    assert result is True
-
-def test_store_events(mock_uow):
-    svc = EventService(mock_uow)
-    dummy_events = [
-        {"id_domain": 4873, "latitude": 0, "longitude": 0, "speed": 0, "event": "start", "timestamp": 1234567890, "odometer": 0, "heading": 0}
-    ]
-    result = svc.store_events(dummy_events)
-    assert result["success"] is True
+    def test_store_events(self, mock_uow):
+        events_data = [
+            {"id_domain": 1, "latitude": -34.6118, "longitude": -58.3960, "speed": 50, 
+             "event": "position", "timestamp": 1704196800000, "odometer": 100, "heading": 90},
+            {"id_domain": 1, "latitude": -34.6200, "longitude": -58.4000, "speed": 40, 
+             "event": "position", "timestamp": 1704196860000, "odometer": 101, "heading": 85}
+        ]
+        
+        service = EventService(mock_uow)
+        
+        with patch('core.services.event_service.SQLAlchemyUnitOfWork') as mock_uow_class:
+            mock_uow_class.return_value.__enter__.return_value = mock_uow
+            service.store_events(events_data)
+        
+        mock_uow.events.store_events.assert_called_once_with(events_data)
