@@ -44,9 +44,10 @@ class DomainRepository:
             print(f"❌ Error al obtener dominios por nombre: {e}")
             return []
 
-    def create_domain(self, domain_name, id_thing=None, id_account=None, created_datetime=None):
+    def create_domain(self, domain_name, id_thing=None, id_account=None, created_datetime=None, 
+                     subtype=None, color=None, make=None, model=None, year=None, gps=None):
         """
-        Crea un nuevo dominio. Si no se proporciona created_datetime, usa datetime.utcnow()
+        Crea un nuevo dominio con todos los campos disponibles.
         """
         try:
             if created_datetime is None:
@@ -56,7 +57,13 @@ class DomainRepository:
                 domain=domain_name, 
                 id_thing=id_thing, 
                 id_account=id_account,
-                created_datetime=created_datetime
+                created_datetime=created_datetime,
+                subtype=subtype,
+                color=color,
+                make=make,
+                model=model,
+                year=year,
+                gps=gps
             )
             self.session.add(new_domain)
             self.session.commit()
@@ -86,6 +93,38 @@ class DomainRepository:
             print(f"❌ Error al actualizar created_datetime del domain: {e}")
             return None
 
+    def update_domain_vehicle_fields(self, domain_id, subtype=None, color=None, make=None, 
+                                   model=None, year=None, gps=None):
+        """
+        Actualiza los campos de vehículo de un domain específico.
+        """
+        try:
+            domain = self.session.query(Domain).filter(Domain.id == domain_id).first()
+            if domain:
+                if subtype is not None:
+                    domain.subtype = subtype
+                if color is not None:
+                    domain.color = color
+                if make is not None:
+                    domain.make = make
+                if model is not None:
+                    domain.model = model
+                if year is not None:
+                    domain.year = year
+                if gps is not None:
+                    domain.gps = gps
+                    
+                self.session.commit()
+                print(f"✅ Campos de vehículo actualizados para domain ID {domain_id}")
+                return domain.to_dict()
+            else:
+                print(f"⚠️ No se encontró el domain con ID {domain_id}.")
+                return None
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            print(f"❌ Error al actualizar campos de vehículo del domain: {e}")
+            return None
+
     def bulk_update_created_datetime_from_vehicle(self):
         """
         Actualiza created_datetime de domains donde sea NULL usando datos de strix.vvehicle
@@ -110,6 +149,59 @@ class DomainRepository:
             self.session.rollback()
             print(f"❌ Error en bulk update de created_datetime: {e}")
             return 0
+
+    def bulk_update_vehicle_fields_from_vehicle(self):
+        """
+        Actualiza campos de vehículo de domains usando datos de strix.vvehicle
+        """
+        try:
+            from sqlalchemy import text
+            
+            query = text("""
+                UPDATE public."domain" AS d
+                SET 
+                    subtype = v.subtype,
+                    color = v.color,
+                    make = v.make,
+                    model = v.model,
+                    year = v.year,
+                    gps = v.gps
+                FROM strix.vvehicle AS v
+                WHERE d.id_thing = v.id
+                  AND (d.subtype IS NULL OR d.color IS NULL OR d.make IS NULL 
+                       OR d.model IS NULL OR d.year IS NULL OR d.gps IS NULL)
+            """)
+            
+            result = self.session.execute(query)
+            self.session.commit()
+            print(f"✅ Se actualizaron {result.rowcount} domains con campos de vehículo desde vvehicle")
+            return result.rowcount
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            print(f"❌ Error en bulk update de campos de vehículo: {e}")
+            return 0
+
+    def get_domains_by_vehicle_criteria(self, make=None, model=None, year=None, color=None):
+        """
+        Obtiene domains filtrados por criterios de vehículo.
+        """
+        try:
+            query = self.session.query(Domain)
+            
+            if make is not None:
+                query = query.filter(Domain.make == make)
+            if model is not None:
+                query = query.filter(Domain.model == model)
+            if year is not None:
+                query = query.filter(Domain.year == year)
+            if color is not None:
+                query = query.filter(Domain.color == color)
+                
+            domains = query.all()
+            return [domain.to_dict() for domain in domains]
+        except SQLAlchemyError as e:
+            print(f"❌ Error al obtener domains por criterios de vehículo: {e}")
+            return []
 
     def get_domains_with_null_created_datetime(self):
         """
@@ -152,3 +244,17 @@ class DomainRepository:
         except SQLAlchemyError as e:
             print(f"❌ Error al obtener dominios por nombres: {e}")
             return []
+
+    def bulk_insert_domains(self, domains_data):
+        """
+        Inserta múltiples domains en una sola operación.
+        """
+        try:
+            self.session.bulk_insert_mappings(Domain, domains_data)
+            self.session.commit()
+            print(f"✅ {len(domains_data)} domains insertados correctamente.")
+            return True
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            print(f"❌ Error en bulk insert de domains: {e}")
+            return False

@@ -29,7 +29,7 @@ echo 2. Últimos 7 días con modo paralelo:
 echo    python main.py --days 7 --mode parallel
 echo.
 echo 3. Fechas específicas con detalles:
-echo    python main.py --start 2025-04-30 --end 2025-05-01 --verbose
+echo    python main.py --start 2025-06-01 --end 2025-06-15 --verbose
 echo.
 echo 4. Solo eventos de hoy:
 echo    python main.py --today
@@ -77,7 +77,7 @@ if "%choice%"=="1" (
     python main_cli.py --dry-run --verbose
 ) else if "%choice%"=="6" (
     echo 💻 Ingresa tu comando personalizado:
-    echo Ejemplo: --start 2025-04-30 --end 2025-05-01 --mode parallel --verbose
+    echo Ejemplo: --start 2025-06-01 --end 2025-06-15 --mode parallel --verbose
     set /p custom_args="Argumentos: "
     echo 🚀 Ejecutando: python main.py !custom_args!
     python main_cli.py !custom_args!

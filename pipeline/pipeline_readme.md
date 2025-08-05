@@ -211,7 +211,7 @@ python main.py --yesterday --mode parallel
 
 #### Reprocesar un periodo específico
 ```bash
-python main.py --start 2025-04-01 --end 2025-04-30 --mode parallel --verbose
+python main.py --start 2025-06-01 --end 2025-06-15 --mode parallel --verbose
 ```
 
 #### Testing y debugging

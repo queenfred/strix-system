@@ -243,8 +243,8 @@ class ParallelPortfolioPipelineProcessor:
 if __name__ == "__main__":
     processor = ParallelPortfolioPipelineProcessor(max_workers=4)
     result = processor.run_pipeline_parallel(
-        start_date="2025-04-30",
-        end_date="2025-05-01",
+        start_date="2025-05-01",
+        end_date="2025-05-31",
         execution_mode="thread"
     )
     print(f"Resultado final: {result['success']}")
